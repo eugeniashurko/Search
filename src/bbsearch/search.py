@@ -36,7 +36,7 @@ class LocalSearcher:
         self.connection = connection
         self.similarity_computers = {
             model_name: TorchSimilarity(embeddings)
-            for model_name, embeddings in precomputed_embeddings
+            for model_name, embeddings in precomputed_embeddings.items()
         }
 
     def query(self,
