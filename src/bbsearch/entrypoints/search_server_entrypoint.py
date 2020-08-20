@@ -22,7 +22,7 @@ parser.add_argument("--models_path",
                     type=str,
                     help="The folder with pretrained models")
 parser.add_argument("--embeddings_path",
-                    default="/raid/sync/proj115/bbs_data/cord19_v35/embeddings/embeddings.h5",
+                    default="/raid/sync/proj115/bbs_data/cord19_v35/embeddings/embeddings_bsv_full.h5",
                     type=str,
                     help="The path to an h5 file with the precomputed embeddings")
 parser.add_argument("--database_uri",
@@ -34,7 +34,7 @@ parser.add_argument("--debug",
                     default=False,
                     help="Enable debug logging messages")
 parser.add_argument("--models",
-                    default="USE,SBERT,SBioBERT,BSV",
+                    default="BSV",
                     type=str,
                     help="Models to load in the search server.")
 args = parser.parse_args()
@@ -62,13 +62,11 @@ def main():
     models_path = pathlib.Path(args.models_path)
     embeddings_path = pathlib.Path(args.embeddings_path)
 
-    indices = H5.find_populated_rows(embeddings_path, 'BSV')
-
     engine = sqlalchemy.create_engine(f"mysql+mysqldb://guest:guest@{args.database_uri}")
 
     models = [model.strip() for model in args.models.split(",")]
 
-    SearchServer(app, models_path, embeddings_path, indices, engine, models)
+    SearchServer(app, models_path, embeddings_path, engine, models)
 
     app.run(
         host=args.host,

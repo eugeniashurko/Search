@@ -25,8 +25,6 @@ class SearchServer:
         The path to the h5 file containing pre-computed embeddings.
     connection : SQLAlchemy connectable (engine/connection) or database str URI or DBAPI2 connection (fallback mode)
         The database connection.
-    indices : np.ndarray
-        1D array containing sentence_ids to be considered for precomputed embeddings.
     models : list_like
         A list of model names of the embedding models to load.
     """
@@ -35,7 +33,6 @@ class SearchServer:
                  app,
                  trained_models_path,
                  embeddings_h5_path,
-                 indices,
                  connection,
                  models,
                  ):
@@ -46,10 +43,6 @@ class SearchServer:
         self.app = app
         self.connection = connection
 
-        if indices is None:
-            raise ValueError('Please specify the indices.')
-
-        self.indices = indices
         self.logger.info("Initializing the server...")
         self.logger.info(f"Name: {self.name}")
         self.logger.info(f"Version: {self.version}")
