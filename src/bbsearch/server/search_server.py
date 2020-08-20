@@ -64,12 +64,13 @@ class SearchServer:
         }
 
         self.logger.info("Loading precomputed embeddings...")
+        # Note, we have to drop the first row in the embeddings because
+        # it's always NaN (sentence_id starts with 1)
         self.precomputed_embeddings = {
             model_name: H5.load(
                 self.embeddings_h5_path,
                 model_name,
-                indices=self.indices
-            ).astype(np.float32)
+            )[1:]
             for model_name in self.embedding_models
         }
 
@@ -77,7 +78,6 @@ class SearchServer:
         self.local_searcher = LocalSearcher(
             self.embedding_models,
             self.precomputed_embeddings,
-            self.indices,
             self.connection
         )
 

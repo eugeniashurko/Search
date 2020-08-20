@@ -2,8 +2,8 @@
 import logging
 
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
 
+from .similarity_computers import TorchSimilarity
 from .sql import SentenceFilter
 from .utils import Timer
 
@@ -26,18 +26,18 @@ class LocalSearcher:
         The pre-trained models.
     precomputed_embeddings : dict
         The pre-computed embeddings.
-    indices : np.ndarray
-        1D array containing sentence_ids corresponding to the rows of each of the
-        values of precomputed_embeddings.
     connection : SQLAlchemy connectable (engine/connection) or database str URI or DBAPI2 connection (fallback mode)
         The database connection.
     """
 
-    def __init__(self, embedding_models, precomputed_embeddings, indices, connection):
+    def __init__(self, embedding_models, precomputed_embeddings, connection):
         self.embedding_models = embedding_models
         self.precomputed_embeddings = precomputed_embeddings
-        self.indices = indices
         self.connection = connection
+        self.similarity_computers = {
+            model_name: TorchSimilarity(embeddings)
+            for model_name, embeddings in precomputed_embeddings
+        }
 
     def query(self,
               which_model,
@@ -82,8 +82,7 @@ class LocalSearcher:
         """
         results = run_search(
             self.embedding_models[which_model],
-            self.precomputed_embeddings[which_model],
-            self.indices,
+            self.similarity_computers[which_model],
             self.connection,
             k,
             query_text,
@@ -99,8 +98,7 @@ class LocalSearcher:
 
 def run_search(
         embedding_model,
-        precomputed_embeddings,
-        indices,
+        similarity_computer,
         connection,
         k,
         query_text,
@@ -118,12 +116,9 @@ def run_search(
     embedding_model : bbsearch.embedding_models.EmbeddingModel
         Instance of EmbeddingModel of the model we want to use.
 
-    precomputed_embeddings : np.ndarray
+    similarity_computer : bbsearch.similarity_computers.BaseSimilarity
         2D array containing embeddings of the model corresponding of embedding_model. Rows are
         sentences and columns are different dimensions.
-
-    indices : np.ndarray
-        1D array containing sentence_ids corresponding to the rows of `precomputed_embeddings`.
 
     connection : SQLAlchemy connectable (engine/connection) or database str URI or DBAPI2 connection (fallback mode)
         Connection to the database.
@@ -196,30 +191,20 @@ def run_search(
             .run()
         )
 
-    with timer('considered_embeddings_lookup'):
-        logger.info("Constructing mask based on indices and sentence filtering")
-        mask = np.isin(indices, restricted_sentence_ids)
-
-    logger.info("Applying the mask")
-    embeddings_corpus = precomputed_embeddings[mask]
-    sentence_ids = indices[mask]
-
-    if len(sentence_ids) == 0:
-        return np.array([]), np.array([]), timer.stats
+        if len(restricted_sentence_ids) == 0:
+            logger.info("No indices left after sentence filtering. Returning.")
+            return np.array([]), np.array([]), timer.stats
 
     # Compute similarities
     with timer('query_similarity'):
-        logger.info("Computing cosine similarities for the query text")
-        similarities_query = cosine_similarity(X=embedding_query[None, :],
-                                               Y=embeddings_corpus).squeeze()
-
-    if deprioritize_text is not None:
-        with timer('deprioritize_similarity'):
-            logger.info("Computing cosine similarity for the deprioritization text")
-            similarities_deprio = cosine_similarity(X=embedding_deprioritize[None, :],
-                                                    Y=embeddings_corpus).squeeze()
-    else:
-        similarities_deprio = np.zeros_like(similarities_query)
+        logger.info("Computing cosine similarities")
+        if deprioritize_text is None:
+            similarities_query = similarity_computer(embedding_query[None, :])
+            similarities_deprio = np.zeros_like(similarities_query)
+        else:
+            similarities_query, similarities_deprio = similarity_computer(
+                np.stack([embedding_query, embedding_deprioritize])
+            )
 
     deprioritizations = {
         'None': (1, 0),
@@ -232,6 +217,7 @@ def run_search(
     logger.info("Combining query and deprioritizations")
     alpha_1, alpha_2 = deprioritizations[deprioritize_strength]
     similarities = alpha_1 * similarities_query - alpha_2 * similarities_deprio
+    similarities = similarities[restricted_sentence_ids]
 
     with timer('sorting'):
         logger.info(f"Sorting the similarities and getting the top {k} results")
@@ -239,4 +225,4 @@ def run_search(
 
     logger.info("run_search finished")
 
-    return sentence_ids[top_indices], similarities[top_indices], timer.stats
+    return restricted_sentence_ids[top_indices], similarities[top_indices], timer.stats

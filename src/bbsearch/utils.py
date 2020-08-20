@@ -308,7 +308,7 @@ class H5:
             n_rows = len(dset)
 
             if indices is None:
-                indices = np.arange(n_rows)
+                return dset[:]
 
             if len(set(indices)) != len(indices):
                 raise ValueError('There cannot be duplicates inside of the indices')
