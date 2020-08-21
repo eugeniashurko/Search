@@ -64,7 +64,7 @@ class FaissSimilarity(BaseSimilarity):
 
         # Save index to file
         logger.info("Writing the FAISS index to a file")
-        faiss.write_index(index, target_index_file)
+        faiss.write_index(index, str(target_index_file))
 
         return cls(target_index_file)
 
