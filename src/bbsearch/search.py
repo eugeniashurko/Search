@@ -217,7 +217,7 @@ def run_search(
     logger.info("Combining query and deprioritizations")
     alpha_1, alpha_2 = deprioritizations[deprioritize_strength]
     similarities = alpha_1 * similarities_query - alpha_2 * similarities_deprio
-    similarities = similarities[restricted_sentence_ids]
+    similarities = similarities[restricted_sentence_ids - 1]
 
     with timer('sorting'):
         logger.info(f"Sorting the similarities and getting the top {k} results")
@@ -225,4 +225,4 @@ def run_search(
 
     logger.info("run_search finished")
 
-    return restricted_sentence_ids[top_indices], similarities[top_indices], timer.stats
+    return restricted_sentence_ids[top_indices] + 1, similarities[top_indices], timer.stats
