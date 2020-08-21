@@ -205,12 +205,15 @@ def run_search(
     with timer('query_similarity'):
         logger.info("Computing cosine similarities")
         if deprioritize_text is None:
-            similarities_query = similarity_computer(embedding_query[None, :])
+            similarities_query = similarity_computer(embedding_query[np.newaxis, :])
+            similarities_query = similarities_query.squeeze()
             similarities_deprio = np.zeros_like(similarities_query)
         else:
             similarities_query, similarities_deprio = similarity_computer(
                 np.stack([embedding_query, embedding_deprioritize])
             )
+
+            # (2, n_embedding)
 
     deprioritizations = {
         'None': (1, 0),

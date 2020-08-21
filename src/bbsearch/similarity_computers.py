@@ -33,7 +33,7 @@ class FaissSimilarity(BaseSimilarity):
         all_similarities, _ = self.index.search(query, self.index.ntotal)
 
         self.logger.info("Done, returning similarities")
-        return all_similarities
+        return all_similarities # (1, n_embeddigns)
 
     @classmethod
     def from_embeddings(cls, normalized_embedding_array, target_index_file=None):
@@ -80,10 +80,14 @@ class TorchSimilarity(BaseSimilarity):
 
     def __call__(self, query_embedding):
         self.logger.info(f"Got a query with {len(query_embedding)} elements.")
+
+        query_embedding = query_embedding.T[None, ...]
+        embedding_array = self.embedding_array[..., None]
+
         all_similarities = nnf.cosine_similarity(
             torch.from_numpy(query_embedding),
-            torch.from_numpy(self.embedding_array),
-        ).numpy()
+            torch.from_numpy(embedding_array),
+        ).numpy().T
 
         self.logger.info("Done, returning similarities")
         return all_similarities
