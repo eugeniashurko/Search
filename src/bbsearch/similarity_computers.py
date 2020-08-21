@@ -1,7 +1,5 @@
 import abc
 import logging
-import pathlib
-import tempfile
 
 import faiss
 import torch
@@ -16,9 +14,17 @@ class BaseSimilarity(abc.ABC):
 
 class FaissSimilarity(BaseSimilarity):
 
-    def __init__(self, index_path):
+    def __init__(self, index_path=None, index=None):
         self.logger = logging.getLogger(__class__.__name__)
-        self.index = faiss.read_index(index_path)
+
+        if index_path is None and index is None:
+            raise ValueError("One of the parameters `index_path` and `index` must be not None")
+        elif index_path is not None and index is not None:
+            raise ValueError("Exactly one of the parameters `index_path` and `index` must be not None")
+        elif index_path is not None:
+            self.index = faiss.read_index(index_path)
+        else:  # index is not None
+            self.index = index
 
         self.logger.info(f"Loaded index with {self.index.ntotal} elements")
 
@@ -30,24 +36,17 @@ class FaissSimilarity(BaseSimilarity):
         faiss.normalize_L2(query)
 
         self.logger.info("Computing FAISS similarities")
-        all_similarities, _ = self.index.search(query, self.index.ntotal)
+        all_similarities, _ = self.index.search(query, k=self.index.ntotal)
 
         self.logger.info("Done, returning similarities")
-        return all_similarities # (1, n_embeddigns)
+        return all_similarities
 
     @classmethod
-    def from_embeddings(cls, normalized_embedding_array, target_index_file=None):
+    def from_embeddings(cls, normalized_embedding_array):
         logger = logging.getLogger(cls.__name__ + ".from_embeddings")
 
         logger.info("Constructing FAISS computer from embeddings")
         n_samples, n_dim = normalized_embedding_array.shape
-
-        # Handle the target file name
-        if target_index_file is None:
-            logger.info("Creating a temporary directory for the index")
-            temporary_directory = pathlib.Path(tempfile.mkdtemp())
-            target_index_file = temporary_directory / "index.faiss"
-            target_index_file = str(target_index_file)
 
         # Instantiate the index
         logger.info("Instantiating a FAISS index")
@@ -63,11 +62,7 @@ class FaissSimilarity(BaseSimilarity):
         logger.info("Adding embedding vectors to the FAISS index")
         index.add(normalized_embedding_array)
 
-        # Save index to file
-        logger.info("Writing the FAISS index to a file")
-        faiss.write_index(index, target_index_file)
-
-        return cls(target_index_file)
+        return cls(index=index)
 
 
 class TorchSimilarity(BaseSimilarity):
