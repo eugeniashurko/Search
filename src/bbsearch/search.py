@@ -1,9 +1,10 @@
 """Collection of functions focused on searching."""
 import logging
 
+import faiss
 import numpy as np
 
-from .similarity_computers import TorchSimilarity
+from .similarity_computers import FaissSimilarity, TorchSimilarity
 from .sql import SentenceFilter
 from .utils import Timer
 
@@ -34,10 +35,15 @@ class LocalSearcher:
         self.embedding_models = embedding_models
         self.precomputed_embeddings = precomputed_embeddings
         self.connection = connection
-        self.similarity_computers = {
-            model_name: TorchSimilarity(embeddings)
-            for model_name, embeddings in precomputed_embeddings.items()
-        }
+        # self.similarity_computers = {
+        #     model_name: TorchSimilarity(embeddings)
+        #     for model_name, embeddings in precomputed_embeddings.items()
+        # }
+
+        self.similarity_computers = dict()
+        for model_name, embeddings in precomputed_embeddings.items():
+            faiss.normalize_L2(embeddings)
+            self.similarity_computers[model_name] = FaissSimilarity.from_embeddings(embeddings)
 
     def query(self,
               which_model,
