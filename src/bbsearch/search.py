@@ -202,19 +202,6 @@ def run_search(
             return np.array([]), np.array([]), timer.stats
 
     # Compute similarities
-    with timer('query_similarity'):
-        logger.info("Computing cosine similarities")
-        if deprioritize_text is None:
-            similarities_query = similarity_computer(embedding_query[np.newaxis, :])
-            similarities_query = similarities_query.squeeze()
-            similarities_deprio = np.zeros_like(similarities_query)
-        else:
-            similarities_query, similarities_deprio = similarity_computer(
-                np.stack([embedding_query, embedding_deprioritize])
-            )
-
-            # (2, n_embedding)
-
     deprioritizations = {
         'None': (1, 0),
         'Weak': (0.9, 0.1),
@@ -223,15 +210,23 @@ def run_search(
         'Stronger': (0.5, 0.7),
     }
     # now: maximize L = a1 * cos(x, query) - a2 * cos(x, exclusions)
-    logger.info("Combining query and deprioritizations")
     alpha_1, alpha_2 = deprioritizations[deprioritize_strength]
-    similarities = alpha_1 * similarities_query - alpha_2 * similarities_deprio
-    similarities = similarities[restricted_sentence_ids - 1]
+    logger.info("Combining query and deprioritizations")
+    with timer('query_similarity'):
+        logger.info("Computing cosine similarities")
+        if deprioritize_text is None:
+            effective_query_embedding = embedding_query
+        else:
+            effective_query_embedding = alpha_1 * embedding_query - alpha_2 * embedding_deprioritize
 
-    with timer('sorting'):
-        logger.info(f"Sorting the similarities and getting the top {k} results")
-        top_indices = np.argsort(-similarities)[:k]
+        top_indices, similarities = similarity_computer(effective_query_embedding)
+        top_sentence_ids = top_indices + 1
+
+    # [8311, 8279, 8317, 8355, 8285]
+    mask = np.isin(top_sentence_ids, restricted_sentence_ids)
+    top_sentence_ids_filtered = top_sentence_ids[mask]
+    similarities_filtered = similarities[mask]
 
     logger.info("run_search finished")
 
-    return restricted_sentence_ids[top_indices] + 1, similarities[top_indices], timer.stats
+    return top_sentence_ids_filtered[:k], similarities_filtered[:k], timer.stats

@@ -36,10 +36,14 @@ class FaissSimilarity(BaseSimilarity):
         faiss.normalize_L2(query)
 
         self.logger.info("Computing FAISS similarities")
-        all_similarities, _ = self.index.search(query, k=self.index.ntotal)
+        all_similarities, all_indices = self.index.search(query, k=self.index.ntotal)
 
         self.logger.info("Done, returning similarities")
-        return all_similarities
+
+        # Depending on the FAISS Index class the similarities
+        # could be ascending or descending!
+
+        return all_indices, all_similarities
 
     @classmethod
     def from_embeddings(cls, normalized_embedding_array):
@@ -76,13 +80,21 @@ class TorchSimilarity(BaseSimilarity):
     def __call__(self, query_embedding):
         self.logger.info(f"Got a query with {len(query_embedding)} elements.")
 
+        self.logger.info("Adding fake dimensions to tensors")
         query_embedding = query_embedding.T[None, ...]
         embedding_array = self.embedding_array[..., None]
 
+        self.logger.info("Computing cosine similarities")
         all_similarities = nnf.cosine_similarity(
             torch.from_numpy(query_embedding),
             torch.from_numpy(embedding_array),
         ).numpy().T
 
+        self.logger.info("Sorting the similarities")
+        all_indices = torch.argsort(-all_similarities)
+
+        self.logger.info("Re-shuffling the similarities")
+        all_similarities = all_similarities[all_indices]
+
         self.logger.info("Done, returning similarities")
-        return all_similarities
+        return all_indices, all_similarities
