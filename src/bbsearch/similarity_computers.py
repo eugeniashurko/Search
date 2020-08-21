@@ -110,7 +110,7 @@ class TorchSimilarity(BaseSimilarity):
         all_similarities = nnf.cosine_similarity(
             torch.from_numpy(query_embedding),
             self.embedding_array,
-        ).numpy()
+        )
 
         self.logger.info("Sorting the similarities")
         all_indices = torch.argsort(-all_similarities)
@@ -119,4 +119,4 @@ class TorchSimilarity(BaseSimilarity):
         all_similarities = all_similarities[all_indices]
 
         self.logger.info("Done, returning similarities")
-        return all_indices, all_similarities
+        return all_indices.numpy(), all_similarities.numpy()
