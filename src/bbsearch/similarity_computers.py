@@ -9,7 +9,27 @@ import torch.nn.functional as nnf
 class BaseSimilarity(abc.ABC):
 
     @abc.abstractmethod
-    def __call__(self, query_embedding): ...
+    def __call__(self, query_embedding):
+        """Compute the similarities and return the ordered result.
+
+        Parameters
+        ----------
+        query_embedding : np.ndarry
+            The embedding of the query text without a batch dimension.
+            The shape of this array should be `(dim_embedding,)`.
+
+        Returns
+        -------
+        all_indices : np.ndarray
+            The sorted indices of the most similar embedding vectors. The
+            result does not contain any batch dimension and the resulting
+            array will have the shape `(size_database,)`.
+        all_similarities : np.ndarray
+            The sorted similarities (or distances) of the most
+            similar embedding vectors. The result does not contain any batch
+            dimension and the resulting array will have the shape
+            `(size_database,)`.
+        """
 
 
 class FaissSimilarity(BaseSimilarity):
@@ -76,22 +96,21 @@ class TorchSimilarity(BaseSimilarity):
 
     def __init__(self, embedding_array):
         self.logger = logging.getLogger(__class__.__name__)
-        self.embedding_array = embedding_array
+        self.embedding_array = torch.from_numpy(embedding_array)
 
         self.logger.info(f"Initialized with {len(self.embedding_array)} embedding vectors")
 
     def __call__(self, query_embedding):
         self.logger.info(f"Got a query with {len(query_embedding)} elements.")
 
-        self.logger.info("Adding fake dimensions to tensors")
-        query_embedding = query_embedding.T[None, ...]
-        embedding_array = self.embedding_array[..., None]
+        self.logger.info("Adding fake dimensions to query")
+        query_embedding = query_embedding[None, ...]
 
         self.logger.info("Computing cosine similarities")
         all_similarities = nnf.cosine_similarity(
             torch.from_numpy(query_embedding),
-            torch.from_numpy(embedding_array),
-        ).numpy().T
+            self.embedding_array,
+        ).numpy()
 
         self.logger.info("Sorting the similarities")
         all_indices = torch.argsort(-all_similarities)
