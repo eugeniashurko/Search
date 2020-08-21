@@ -31,6 +31,7 @@ class FaissSimilarity(BaseSimilarity):
     def __call__(self, query_embedding):
         self.logger.info(f"Got a query with {len(query_embedding)} elements.")
         query = query_embedding.copy()
+        query = query[None, ...]  # FAISS needs shape = (1, dim_embedding)
 
         self.logger.info("Normalizing the query vectors")
         faiss.normalize_L2(query)
@@ -43,7 +44,9 @@ class FaissSimilarity(BaseSimilarity):
         # Depending on the FAISS Index class the similarities
         # could be ascending or descending!
 
-        return all_indices, all_similarities
+        # The returned arrays have shape (1, index.ntotal)
+
+        return all_indices[0], all_similarities[0]
 
     @classmethod
     def from_embeddings(cls, normalized_embedding_array):
