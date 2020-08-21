@@ -47,6 +47,7 @@ class FaissSimilarity(BaseSimilarity):
             logger.info("Creating a temporary directory for the index")
             temporary_directory = pathlib.Path(tempfile.mkdtemp())
             target_index_file = temporary_directory / "index.faiss"
+            target_index_file = str(target_index_file)
 
         # Instantiate the index
         logger.info("Instantiating a FAISS index")
@@ -64,7 +65,7 @@ class FaissSimilarity(BaseSimilarity):
 
         # Save index to file
         logger.info("Writing the FAISS index to a file")
-        faiss.write_index(index, str(target_index_file))
+        faiss.write_index(index, target_index_file)
 
         return cls(target_index_file)
 
