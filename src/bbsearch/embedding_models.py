@@ -110,8 +110,7 @@ class SBioBERT(EmbeddingModel):
     https://huggingface.co/gsarti/biobert-nli
     """
 
-    def __init__(self,
-                 device=None):
+    def __init__(self, device=None):
         self.device = device or torch.device('cpu')
         self.sbiobert_model = AutoModel.from_pretrained("gsarti/biobert-nli").to(self.device)
         self.tokenizer = AutoTokenizer.from_pretrained("gsarti/biobert-nli")
@@ -404,7 +403,7 @@ class BSV(EmbeddingModel):
 
     Parameters
     ----------
-    checkpoint_model_path: pathlib.Path
+    checkpoint_path: pathlib.Path or str
         Path to the file of the stored model BSV.
 
     References
@@ -412,13 +411,12 @@ class BSV(EmbeddingModel):
     https://github.com/ncbi-nlp/BioSentVec
     """
 
-    def __init__(self,
-                 checkpoint_model_path):
-        self.checkpoint_model_path = checkpoint_model_path
-        if not self.checkpoint_model_path.is_file():
-            raise FileNotFoundError(f'The file {self.checkpoint_model_path} was not found.')
+    def __init__(self, checkpoint_path):
+        self.checkpoint_path = pathlib.Path(checkpoint_path)
+        if not self.checkpoint_path.is_file():
+            raise FileNotFoundError(f'The file {self.checkpoint_path} was not found.')
         self.bsv_model = sent2vec.Sent2vecModel()
-        self.bsv_model.load_model(str(self.checkpoint_model_path))
+        self.bsv_model.load_model(str(self.checkpoint_path))
         self.bsv_stopwords = set(stopwords.words('english'))
 
     @property
