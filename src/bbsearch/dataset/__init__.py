@@ -1,7 +1,9 @@
 import csv
 import pathlib
 
+import numpy as np
 import pandas as pd
+import sklearn.metrics as skm
 
 
 def norm_average_scores(columns, *, min=None, max=None):
@@ -154,3 +156,30 @@ def process_sick(df_sick):
     df_sick = df_sick.reset_index(drop=True)
 
     return df_sick
+
+
+def compute_similarity(sentence_1, sentence_2, model):
+    embedding_1 = model(sentence_1)
+    embedding_2 = model(sentence_2)
+    similarity = skm.pairwise.cosine_similarity(
+        X=embedding_1,
+        Y=embedding_2,
+    )
+
+    # assert similarity.shape == (1, 1)
+
+    return similarity[0, 0]
+
+
+def add_similarity_columns(df_sentences, models):
+    for model_name, model in models.items():
+        column_name = f"{model_name.lower()}_score"
+        score_column = df_sentences.apply(
+            lambda row: compute_similarity(
+                row["sentence_1"],
+                row["sentence_2"],
+                model,
+            ),
+            axis=1,
+        )
+        df_sentences[column_name] = score_column

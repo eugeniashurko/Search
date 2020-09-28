@@ -96,6 +96,28 @@ class EmbeddingModel(ABC):
         """
         return np.array([self.embed(sentence) for sentence in preprocessed_sentences])
 
+    def __call__(self, raw_text):
+        """Compute embedding of raw text.
+
+        Parameters
+        ----------
+        raw_text : list or str
+            One single text or a batch of texts.
+        Returns
+        -------
+        embedding : np.ndarray
+            The text embeddings in an array of shape (n_texts, self.dim)
+        """
+        if isinstance(raw_text, str):
+            preprocessed = self.preprocess(raw_text)
+            embedding = self.embed(preprocessed)
+            embedding = embedding[np.newaxis, ...]
+        else:
+            preprocessed = self.preprocess_many(raw_text)
+            embedding = self.embed_many(preprocessed)
+
+        return embedding
+
 
 class SBioBERT(EmbeddingModel):
     """Sentence BioBERT.
