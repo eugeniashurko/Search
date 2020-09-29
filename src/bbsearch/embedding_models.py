@@ -299,17 +299,9 @@ class Sent2VecModel(EmbeddingModel):
         self.model.load_model(str(self.checkpoint_path))
 
         self.logger.info("Loading the preprocessing spacy model")
-        # We only need the tokenizer of the spacy model, so we disable
-        # all the other components. Note that vocab takes by far the most
-        # time to load. Internally roughly the following steps take place:
-        #   nlp = spacy.lang.en.English()
-        #   nlp.tokenizer.from_disk(tokenizer_path, exclude=["vocab"])
-        # (See `spacy.language.Language.from_disk`, here the tokenizer path is
-        # "../site-packages/en_core_sci_lg/en_core_sci_lg-x.x.x/tokenizer")
-        # so it doesn't seem that the vocab is necessary for the tokenization.
         self.nlp = spacy.load(
             name="en_core_sci_lg",
-            disable=["tagger", "parser", "ner", "vocab"],
+            disable=["tagger", "parser", "ner"],
         )
 
     @property
