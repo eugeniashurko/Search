@@ -96,13 +96,16 @@ class EmbeddingModel(ABC):
         """
         return np.array([self.embed(sentence) for sentence in preprocessed_sentences])
 
-    def __call__(self, raw_text):
+    def __call__(self, raw_text, normalize=False):
         """Compute embedding of raw text.
 
         Parameters
         ----------
         raw_text : list or str
             One single text or a batch of texts.
+        normalize : bool
+            Normalize the embedding vectors to unit length.
+
         Returns
         -------
         embedding : np.ndarray
@@ -115,6 +118,11 @@ class EmbeddingModel(ABC):
         else:
             preprocessed = self.preprocess_many(raw_text)
             embedding = self.embed_many(preprocessed)
+
+        if normalize:
+            norm = np.linalg.norm(embedding, axis=1, keepdims=True)
+            norm[norm == 0] = 1  # avoid division by zero for zero-vectors
+            embedding /= norm
 
         return embedding
 
